@@ -26,5 +26,5 @@ Imagens em um grupo específico
 ### A ideia é futuramente lançar
 
 - Mais skins próprias para o projeto, agilizando o processo do front-end;
-- Uma melhora no aspect-ratio das imagens e a utilização de <canvas> no lugar de <img>;
-- Otimização no código Javascript em geral.
+- Uma melhora no aspect-ratio das imagens e a utilização de ```<canvas>``` no lugar de ```<img>```;
+- Otimização no código Javascript em geral
