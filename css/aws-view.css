@@ -13,8 +13,18 @@
     to {filter:opacity(.1) brightness(.1)}
 }
 
-:root {
-    --screen-ratio:calc(100vw / 100vh)
+:root {--screen-ratio:calc(100vw / 100vh); --aws-color:222,0,74}
+
+:root,
+.aws-skin-dark {
+    --overlay-color:4,4,5;
+    --box-color:54,57,63;
+    --btn-color:6,6,7
+}
+.aws-skin-light {
+    --overlay-color:116,127,141;
+    --box-color:144,153,164;
+    --btn-color:220,221,222
 }
 
 .aws-btn {
@@ -27,16 +37,21 @@
     justify-content:center;
     align-items:center;
     border-radius:25px;
-    background-color:rgba(0,0,0,.65);
+    background-color:rgba(var(--btn-color),.65);
     color:rgba(255,255,255,.9);
     text-align:center;
     text-decoration:none;
     transition:transform 120ms ease-in, background-color 220ms ease-in;
     position:absolute
 }
-.aws-btn:hover {background-color:rgb(222,0,74); transform:scale(1.1)}
+.aws-btn:hover {background-color:rgb(var(--aws-color)); transform:scale(1.1)}
 .aws-btn:active {transform:scale(.9)}
-.aws-btn[href^="#aws-view-close"] {right:5vw; top:5vh}
+.aws-btn[href^="#aws-view-close"],
+.aws-btn[href^="#aws-view-toggle-fullscreen"],
+.aws-btn[href^="#aws-view-slideshow"] {top:5vh}
+.aws-btn[href^="#aws-view-close"] {right:5vw}
+.aws-btn[href^="#aws-view-toggle-fullscreen"] {right:calc(5vw + 3rem + 1rem)}
+.aws-btn[href^="#aws-view-slideshow"] {right:calc(5vw + 3rem * 2 + 2rem)}
 .aws-btn[href^="#aws-view-prev"],
 .aws-btn[href^="#aws-view-next"] {top:50vh}
 .aws-btn[href^="#aws-view-prev"] {left:5vw}
@@ -118,11 +133,32 @@
     width:100%;
     height:100%;
     overflow:hidden;
-    background-color:rgba(22,22,22,.6);
+    background-color:rgba(var(--overlay-color),.6);
     display:block;
     position:fixed;
     left:0;
     top:0
+}
+.aws-view_progress {
+    z-index:3;
+    width:100%;
+    height:4px;
+    display:block;
+    background-color:rgba(var(--btn-color),.65);
+    overflow:hidden;
+    position:fixed;
+    right:0;
+    left:0;
+    top:0
+}
+.aws-view_progress > * {
+    width:0%;
+    min-width:0%;
+    max-width:100%;
+    height:100%;
+    display:block;
+    background-color:rgb(var(--aws-color));
+    transition:width 100ms ease-in
 }
 .aws-view_content-wrapper {max-width:1600px; display:block; margin:auto}
 .aws-view_content {
@@ -136,35 +172,35 @@
     position:relative
 }
 .aws-view_content .aws-view_box {
-    min-width:1rem;
-    min-height:1rem;
-    border:2px solid rgb(255,255,255);
+    display:block;
+    border:3px solid rgb(var(--box-color));
     border-radius:2px;
     overflow:hidden;
     margin:auto;
-    background-color:rgba(44,44,44);
-    box-shadow:0 0 1rem rgba(0,0,0,.5);
-    transition:width 1s, height 1s, transform 50ms
+    background-color:rgb(var(--box-color));
+    box-shadow:0 0 3px rgba(0,0,0,.5);
+    transition:width 500ms ease, height 500ms ease, max-width 500ms ease, max-height 500ms ease, transform 50ms ease-out
 }
-.aws-view_content .aws-view_box > img {pointer-events:none; width:100%; height:100%; object-fit:cover; display:block; transition:width 1s, height 1s}
+.aws-view_content .aws-view_box > img {pointer-events:none; width:100%; height:100%; object-fit:cover; display:block}
+.aws-view_content .aws-view_box > canvas {pointer-events:none; width:100%; height:100%; display:block}
 @media (max-width:600px){
-    .aws-view_content .aws-view_box {max-width:90vw; max-height:calc(90vw / var(--screen-ratio))}
+    .aws-view_content .aws-view_box {max-width:90vw !important; max-height:calc(90vw / var(--screen-ratio)) !important}
 }
 @media (min-width:600px){
-    .aws-view_content .aws-view_box {max-width:85vw; max-height:calc(85vw / var(--screen-ratio))}
+    .aws-view_content .aws-view_box {max-width:85vw !important; max-height:calc(85vw / var(--screen-ratio)) !important}
 }
 @media (min-width:768px){
-    .aws-view_content .aws-view_box {max-width:65vw; max-height:calc(65vw / var(--screen-ratio))}
+    .aws-view_content .aws-view_box {max-width:65vw !important; max-height:calc(65vw / var(--screen-ratio)) !important}
 }
 @media (min-width:1024px){
-    .aws-view_content .aws-view_box {max-width:60vw; max-height:calc(60vw / var(--screen-ratio))}
+    .aws-view_content .aws-view_box {max-width:60vw !important; max-height:calc(60vw / var(--screen-ratio)) !important}
 }
 @media (min-width:1600px){
-    .aws-view_content .aws-view_box {max-width:50vw; max-height:calc(50vw / var(--screen-ratio))}
+    .aws-view_content .aws-view_box {max-width:50vw !important; max-height:calc(50vw / var(--screen-ratio)) !important}
 }
 @media (min-width:1920px){
-    .aws-view_content .aws-view_box {max-width:40vw; max-height:calc(40vw / var(--screen-ratio))}
+    .aws-view_content .aws-view_box {max-width:40vw !important; max-height:calc(40vw / var(--screen-ratio)) !important}
 }
 @media (min-width:2560px){
-    .aws-view_content .aws-view_box {max-width:30vw; max-height:calc(30vw / var(--screen-ratio))}
+    .aws-view_content .aws-view_box {max-width:30vw !important; max-height:calc(30vw / var(--screen-ratio)) !important}
 }
