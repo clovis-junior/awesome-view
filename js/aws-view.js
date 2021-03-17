@@ -1,9 +1,19 @@
 "use strict";
-const w=window, d=document, 
-    aws_move_limit=80,
+const w=window, d=document,
     aws_label_query="*[data-aws-view]";
-var aws_slideshow, aws_slideshow_index=0, aws_slideshow_array=[], aws_slideshow_interval=5000, aws_slideshow_running=false, aws_slideshow_progress=0,
-    aws_move_initial_x, aws_move_initial_y, aws_move_x, aws_move_y;
+var aws_user_os="unknown",
+    aws_slideshow, aws_slideshow_index=0, aws_slideshow_array=[], aws_slideshow_interval=5000, aws_slideshow_running=false, aws_slideshow_progress=0,
+    aws_move_initial_x, aws_move_initial_y, aws_move_x, aws_move_y,
+    aws_move_x_limit=parseInt(w.innerWidth * .25), aws_move_y_limit=parseInt(w.innerHeight * .5);
+
+const aws_move_limit=parseInt((aws_move_x_limit + aws_move_y_limit) * .1);
+
+
+function _aws_add_zero(num){
+    num=num || 0;
+    let string_num=num.toString();
+    return (string_num.length < 2) ? "0"+ string_num : string_num
+}
 
 function _aws_animation(elmnt, anim_name, ms){
     elmnt.classList.add("aws-view_"+ anim_name +"-"+ ms);
@@ -60,7 +70,7 @@ function _aws_box_grab_move(evt){
     let x=parseInt(((navigator.maxTouchPoints > 0 ? evt.changedTouches[0].clientX : evt.clientX) - rect.left) - (evt.target.offsetWidth * .5)),
         y=parseInt(((navigator.maxTouchPoints > 0 ? evt.changedTouches[0].clientY : evt.clientY) - rect.top) - (evt.target.offsetHeight * .5));
 
-    evt.target.style.transform="translate("+ (Math.abs(x) <= aws_move_limit ? x : (Math.sign(x) == -1 ? -aws_move_limit : aws_move_limit) ) +"px, "+ (Math.abs(y) <= (aws_move_limit * 2) ? y : (Math.sign(y) == -1 ? -(aws_move_limit / 2) : (aws_move_limit * 2)) ) +"px)";
+    evt.target.style.transform="translate("+ (Math.abs(x) <= aws_move_x_limit ? x : (Math.sign(x) == -1 ? -aws_move_x_limit : aws_move_x_limit) ) +"px, "+ (Math.abs(y) <= aws_move_y_limit ? y : (Math.sign(y) == -1 ? -aws_move_y_limit : aws_move_y_limit) ) +"px)";
         
     aws_move_x=x,aws_move_y=y;
     return false 
@@ -84,7 +94,6 @@ function _aws_box_grab_end(evt){
 }
 
 function _aws_slideshow_show(id){
-
     if(aws_slideshow_array.length <= 0) return false
     id=id || 0;
 
@@ -99,6 +108,8 @@ function _aws_slideshow_show(id){
 
     let image=new Image(), image_elmnt=d.querySelector(".aws-view_box > img") || d.querySelector(".aws-view_box > canvas");
     image.addEventListener("load", evt=> {
+        aws_slideshow_index=id;
+
         if(image_elmnt.tagName == "IMG"){
             image_elmnt.style.setProperty("max-width", evt.target.naturalWidth +"px", "important");
             image_elmnt.style.setProperty("max-height", evt.target.naturalHeight +"px", "important");
@@ -109,8 +120,10 @@ function _aws_slideshow_show(id){
             image_elmnt_ctx.drawImage(evt.target, 0, 0, image_elmnt.width, image_elmnt.height)
         }
         
-        _aws_animation(image_elmnt, "fade-in", 220)
-        aws_slideshow_index=id
+        _aws_animation(image_elmnt, "fade-in", 220);
+        
+        if(d.querySelector("*[aria-label*=aws-view-show-index]"))
+            d.querySelector("*[aria-label*=aws-view-show-index]").innerText=_aws_add_zero(id);
     }, false);
     image.src=aws_slideshow_array[id - 1];
 
@@ -246,7 +259,7 @@ function _aws_open_modal(evt){
     if(aws_slideshow_array.length > 1)  aws_slideshow_array=[];
     if(elmnt.hasAttribute("data-aws-view-group")){
         let group=d.querySelectorAll("*[data-aws-view-group*=\""+ elmnt.getAttribute("data-aws-view-group") +"\"]");
-        const modal_prev_btn_elmnt=d.createElement("a"), modal_next_btn_elmnt=d.createElement("a");
+        const modal_info_elmnt=d.createElement("div"), modal_prev_btn_elmnt=d.createElement("a"), modal_next_btn_elmnt=d.createElement("a");
 
         if(group.length > 1){
             modal_slideshow_btn_elmnt.href="#aws-view-slideshow";
@@ -279,16 +292,25 @@ function _aws_open_modal(evt){
                 if(elmt_source == source) aws_slideshow_index=(i + 1);
                 aws_slideshow_array.push(group[i].hasAttribute("data-aws-view-source") ? group[i].getAttribute("data-aws-view-source") : group[i].src)
             }
-    
+
+            modal_info_elmnt.className="aws-view_info";
+            modal_info_elmnt.innerHTML="<span aria-label=aws-view-show-index>"+ _aws_add_zero(aws_slideshow_index) +"</span>/<span aria-label=aws-view-show-count>"+ _aws_add_zero(group.length) +"</span>";
+            modal_content_elmnt.appendChild(modal_info_elmnt);
+
+            modal_elmnt.onclick=evt=>{
+                let aws_clicked_out=!(evt.target.classList.contains("aws-view_box") || evt.target.classList.contains("aws-btn") || evt.target.classList.contains("aws-view_info"));
+                if(aws_clicked_out){
+                    _aws_close_modal();
+                    return false
+                }else return
+            };
             d.addEventListener("keyup", _aws_slideshow_shortcut, false)
         }
     }
 
-    content_box_elmnt.onmousedown=_aws_box_grab_start,
-    content_box_elmnt.onmouseup=_aws_box_grab_end;
-    content_box_elmnt.ontouchstart=_aws_box_grab_start,
+    content_box_elmnt.onmousedown=content_box_elmnt.ontouchstart=_aws_box_grab_start,
     content_box_elmnt.ontouchmove=_aws_box_grab_move,
-    content_box_elmnt.ontouchend=_aws_box_grab_end;
+    content_box_elmnt.onmouseup=content_box_elmnt.ontouchend=_aws_box_grab_end;
 
     modal_elmnt.appendChild(modal_content_wrapper_elmnt);
     modal_content_wrapper_elmnt.appendChild(modal_content_elmnt);
@@ -325,6 +347,10 @@ function _aws_open_modal(evt){
     image.src=source;
 
     d.addEventListener("keyup", evt=>{
+        if(evt.altKey && evt.code == "Enter"){
+            _aws_toggle_fullscreen();
+            return false
+        }
         switch(evt.code){
             case "Escape":
                 _aws_close_modal();
@@ -333,7 +359,10 @@ function _aws_open_modal(evt){
                 _aws_toggle_fullscreen();
                 return false
         }
-    }, false)
+    }, false);
+
+    evt.preventDefault();
+    return false
 }
 
 if(d.querySelector(aws_label_query)){
@@ -343,11 +372,15 @@ if(d.querySelector(aws_label_query)){
     }else d.querySelectorAll(aws_label_query).onclick=_aws_open_modal;
 }
 
+w.addEventListener("resize", evt=>{
+    evt.preventDefault();
+    aws_move_x_limit=parseInt(evt.target.innerWidth * .25), aws_move_y_limit=parseInt(evt.target.innerHeight * .5);
+}, false),
 w.addEventListener("hashchange", evt=>{
+    evt.preventDefault();
     let modal_elmnt=d.querySelector(".aws-view_overlay");
     if(modal_elmnt){
-        evt.preventDefault();
         _aws_close_modal();
         return false
-    }
+    }else return
 }, false)
