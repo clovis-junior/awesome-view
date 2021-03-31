@@ -1,8 +1,8 @@
 "use strict";
 const w=window, d=document,
-    aws_label_query="*[data-aws-view]";
-var aws_user_os="unknown",
-    aws_slideshow, aws_slideshow_index=0, aws_slideshow_array=[], aws_slideshow_interval=5000, aws_slideshow_running=false, aws_slideshow_progress=0,
+    aws_label_query="[data-aws-view]";
+var aws_previous_hash="",
+    aws_slideshow, aws_slideshow_index=0, aws_slideshow_array=[], aws_captions_array=[], aws_slideshow_interval=5000, aws_slideshow_running=false, aws_slideshow_progress=0,
     aws_move_initial_x, aws_move_initial_y, aws_move_x, aws_move_y,
     aws_move_x_limit=parseInt(w.innerWidth * .25), aws_move_y_limit=parseInt(w.innerHeight * .5);
 
@@ -13,6 +13,20 @@ function _aws_add_zero(num){
     num=num || 0;
     let string_num=num.toString();
     return (string_num.length < 2) ? "0"+ string_num : string_num
+}
+
+function _aws_slugfy(str){
+    str=str || "";
+    str=str.trim(),
+    str=str.normalize("NFKD"),
+    str=str.replace(/[\u0300-\u036F]/g, "")
+        .replace(/\s+/gm, "-")
+        .replace(/[^\w\-]+/gm, "")
+        .replace(/\-\-+/gm, "-")
+        .replace(/^\-+/gm, "")
+        .replace(/\-+$/gm, ""),
+    str=str.toLowerCase();
+    return str
 }
 
 function _aws_animation(elmnt, anim_name, ms){
@@ -93,12 +107,12 @@ function _aws_box_grab_end(evt){
     return false
 }
 
-function _aws_slideshow_show(id){
+function _aws_slideshow_show(img){
     if(aws_slideshow_array.length <= 0) return false
-    id=id || 0;
+    img=img || 0;
 
-    if(id > aws_slideshow_array.length) id=1;
-    else if(id < 1) id=aws_slideshow_array.length;
+    if(img > aws_slideshow_array.length) img=1;
+    else if(img < 1) img=aws_slideshow_array.length;
 
     let aws_progress_elmnt=d.querySelector(".aws-view_progress");
     aws_slideshow_progress=0;
@@ -106,26 +120,58 @@ function _aws_slideshow_show(id){
     if(aws_progress_elmnt && aws_progress_elmnt.children[0])
         aws_progress_elmnt.children[0].style.width=aws_slideshow_progress;
 
-    let image=new Image(), image_elmnt=d.querySelector(".aws-view_box > img") || d.querySelector(".aws-view_box > canvas");
-    image.addEventListener("load", evt=> {
-        aws_slideshow_index=id;
+    if(aws_captions_array[img - 1] && aws_captions_array[img - 1].trim().length > 0){
+        if(!d.querySelector(".aws-view_caption"))
+            _aws_create_caption(d.querySelector(".aws-view_content"), aws_captions_array[img - 1])
+    
+        d.querySelector(".aws-view_caption").innerHTML=aws_captions_array[img - 1]
+    }else if((!aws_captions_array[img - 1] || aws_captions_array[img - 1].trim().length <= 0) && d.querySelector(".aws-view_caption")){
+        const caption_elmt=d.querySelector(".aws-view_caption");
+        _aws_animation(caption_elmt, "fade-out", 220);
+        setTimeout(()=>{
+            caption_elmt.parentNode.removeChild(caption_elmt)
+        }, 220)
+    }
 
-        if(image_elmnt.tagName == "IMG"){
+    let image=new Image();
+    image.onabort=()=>{
+        alert("Não foi possível carregar a imagem.")
+    },
+    image.onprogress=()=>{
+        if(d.querySelector(".aws-view_box"))
+            d.querySelector(".aws-view_box").innerHTML="<div class=aws-view_loader></div>";
+    },
+    image.onload=evt=>{
+        aws_slideshow_index=img;
+
+        if(!d.querySelector(".aws-view_box")) return;
+        
+        d.querySelector(".aws-view_box").innerHTML="";
+
+        let hash="",
+            image_elmnt=d.createElement("canvas"), image_elmnt_ctx=image_elmnt.getContext("2d", {antialias:true, depth:false});
+        
+        if(!image_elmnt_ctx){
+            image_elmnt=d.createElement("img");
             image_elmnt.style.setProperty("max-width", evt.target.naturalWidth +"px", "important");
             image_elmnt.style.setProperty("max-height", evt.target.naturalHeight +"px", "important");
             image_elmnt.src=evt.target.src;
+            image_elmnt.alt=""
         }else{
-            let image_elmnt_ctx=image_elmnt.getContext("2d", {antialias:true, depth:false});
             image_elmnt.width=parseInt(evt.target.naturalWidth * _aws_resize_image(evt.target.naturalWidth, evt.target.naturalHeight)), image_elmnt.height=parseInt(evt.target.naturalHeight * _aws_resize_image(evt.target.naturalWidth, evt.target.naturalHeight));
             image_elmnt_ctx.drawImage(evt.target, 0, 0, image_elmnt.width, image_elmnt.height)
         }
-        
+
+        if(w.location.hash.length > 0) aws_previous_hash=w.location.hash;
+        w.location.hash=(Number.isInteger(w.location.hash.slice(0, -2)) ? w.location.hash.slice(0, -2) : w.location.hash.slice(0, -1)) + aws_slideshow_index;
+
+        d.querySelector(".aws-view_box").appendChild(image_elmnt);
         _aws_animation(image_elmnt, "fade-in", 220);
         
-        if(d.querySelector("*[aria-label*=aws-view-show-index]"))
-            d.querySelector("*[aria-label*=aws-view-show-index]").innerText=_aws_add_zero(id);
-    }, false);
-    image.src=aws_slideshow_array[id - 1];
+        if(d.querySelector("[aria-label*=aws-view-show-index]"))
+            d.querySelector("[aria-label*=aws-view-show-index]").innerText=_aws_add_zero(img);
+    };
+    image.src=aws_slideshow_array[img - 1];
 
     return false
 }
@@ -153,8 +199,8 @@ function _aws_slideshow_toggle(evt){
         _aws_animation(aws_progress_elmnt_create, "fade-in", 220);
 
         aws_slideshow=setInterval(()=>{
-            aws_slideshow_progress+=parseInt((aws_slideshow_interval * 2) / 100);
-            let aws_slideshow_percent=parseFloat((aws_slideshow_progress / aws_slideshow_interval) * 100);
+            aws_slideshow_progress+=Math.ceil(aws_slideshow_interval * 2 / 100);
+            let aws_slideshow_percent=Math.abs(aws_slideshow_progress / aws_slideshow_interval * 100);
             aws_progress_elmnt_create.children[0].style.width=aws_slideshow_percent +"%";
             if(aws_slideshow_percent > 100 || aws_slideshow_progress > aws_slideshow_interval){
                 _aws_slideshow_show(aws_slideshow_index += +1);
@@ -183,13 +229,20 @@ function _aws_close_modal(evt){
     let modal_elmnt=d.querySelector(".aws-view_overlay");
     if(modal_elmnt){
         d.body.style.removeProperty("overflow");
+        w.history.pushState("", d.title, w.location.href.split("#")[0]);
         _aws_animation(modal_elmnt, "fade-out", 220);
         setTimeout(()=>{
             modal_elmnt.parentNode.removeChild(modal_elmnt)
         }, 220)
     }
-    aws_slideshow_progress=0;
-    aws_slideshow=null;
+    aws_slideshow_progress=aws_slideshow_index=0,
+    aws_slideshow_array=[],
+    aws_previous_hash="";
+    if(aws_slideshow != null || aws_slideshow_running == true){
+        clearInterval(aws_slideshow),
+        aws_slideshow_running=false,
+        aws_slideshow=null
+    }
     return false
 }
 
@@ -222,13 +275,29 @@ function _aws_toggle_fullscreen(evt){
 }
 
 function _aws_resize_image(width, height){
+    width=parseInt(width) || Math.ceil(screen.width * .5),
+    height=parseInt(height) || Math.ceil(screen.height * .5);
     let div=0;
 
-    if(width > screen.width || height > screen.height) div=.6;
-    else if(width < screen.width || height < screen.height) div=.9;
-    else div=.5;
+    if((screen.width * .9 > width) || (screen.height * .9 > height)) div=.95;
+    else if((screen.width * .75 > width) || (screen.height * .75 > height)) div=.8;
+    else if((screen.width * .5 > width) || (screen.height * .5 > height)) div=.75;
+    else div=.6;
 
     return div
+}
+
+function _aws_create_caption(elmt, caption){
+    if(d.querySelector(".aws-view_caption")) return;
+
+    caption=caption.toString() || "";
+    const caption_elmt=d.createElement("div");
+    caption_elmt.className="aws-view_caption";
+    caption_elmt.innerHTML=caption.trim();
+    if(elmt && elmt instanceof Element){
+        elmt.appendChild(caption_elmt);
+        _aws_animation(caption_elmt, "fade-in", 220)
+    }
 }
 
 function _aws_open_modal(evt){
@@ -242,8 +311,15 @@ function _aws_open_modal(evt){
         modal_content_elmnt=d.createElement("div"),
         content_box_elmnt=d.createElement("div");
 
-    let source=(elmnt.hasAttribute("data-aws-view-source") ? elmnt.getAttribute("data-aws-view-source") : elmnt.src);
+    let hash="", source=(elmnt.hasAttribute("data-aws-view-source") ? elmnt.getAttribute("data-aws-view-source") : elmnt.src);
 
+    if(elmnt.hasAttribute("data-aws-view-skin"))
+        modal_elmnt.className="aws-view_overlay aws-skin-"+ elmnt.getAttribute("data-aws-view-skin");
+    else if(w.matchMedia)
+        modal_elmnt.className="aws-view_overlay aws-skin-"+ (w.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    else
+        modal_elmnt.className="aws-view_overlay";
+    
     modal_elmnt.className=(elmnt.hasAttribute("data-aws-view-skin") ? "aws-view_overlay aws-skin-"+ elmnt.getAttribute("data-aws-view-skin") : "aws-view_overlay");
     modal_content_wrapper_elmnt.className="aws-view_content-wrapper";
     modal_content_elmnt.className="aws-view_content";
@@ -256,10 +332,22 @@ function _aws_open_modal(evt){
     modal_fullscreen_btn_elmnt.href="#aws-view-toggle-fullscreen";
     modal_fullscreen_btn_elmnt.innerHTML="<span aria-hidden=true class=\"aws-icon maximize\"></span>";
 
-    if(aws_slideshow_array.length > 1)  aws_slideshow_array=[];
     if(elmnt.hasAttribute("data-aws-view-group")){
-        let group=d.querySelectorAll("*[data-aws-view-group*=\""+ elmnt.getAttribute("data-aws-view-group") +"\"]");
+        let group=d.querySelectorAll("[data-aws-view-group*=\""+ elmnt.getAttribute("data-aws-view-group") +"\"]");
         const modal_info_elmnt=d.createElement("div"), modal_prev_btn_elmnt=d.createElement("a"), modal_next_btn_elmnt=d.createElement("a");
+
+        hash+="aws-glr="+ _aws_slugfy(elmnt.getAttribute("data-aws-view-group"));
+
+        if(elmnt.hasAttribute("data-aws-view-caption")){
+            if(group.length > 1){
+                let captions=d.querySelectorAll("[data-aws-view-group*=\""+ elmnt.getAttribute("data-aws-view-group") +"\"][data-aws-view-caption]");
+    
+                for(let i=0;i<captions.length;++i)
+                    aws_captions_array.push(captions[i].getAttribute("data-aws-view-caption").toString().trim());
+            }
+
+            _aws_create_caption(modal_content_elmnt, elmnt.getAttribute("data-aws-view-caption"))
+        }
 
         if(group.length > 1){
             modal_slideshow_btn_elmnt.href="#aws-view-slideshow";
@@ -305,8 +393,9 @@ function _aws_open_modal(evt){
                 }else return
             };
             d.addEventListener("keyup", _aws_slideshow_shortcut, false)
-        }
-    }
+        }else aws_slideshow_index=0;
+    }else if(!elmnt.hasAttribute("data-aws-view-group") && elmnt.hasAttribute("data-aws-view-caption"))
+        _aws_create_caption(modal_content_elmnt, elmnt.getAttribute("data-aws-view-caption"));
 
     content_box_elmnt.onmousedown=content_box_elmnt.ontouchstart=_aws_box_grab_start,
     content_box_elmnt.ontouchmove=_aws_box_grab_move,
@@ -321,13 +410,29 @@ function _aws_open_modal(evt){
     modal_close_btn_elmnt.onclick=_aws_close_modal;
     modal_fullscreen_btn_elmnt.onclick=_aws_toggle_fullscreen;
 
+    if(!d.querySelector("link[href*=\"aws-view.css\"]")){
+        const style_elmnt=d.createElement("link"),
+            aws_asset_dir=d.querySelector("script[src*=\"aws-view.js\"]").src;
+        style_elmnt.rel="stylesheet";
+        style_elmnt.href=aws_asset_dir.replaceAll("js", "css") +"?t="+ new Date().getTime();
+        style_elmnt.type="text/css";
+        d.head.appendChild(style_elmnt)
+    }
+
     d.body.appendChild(modal_elmnt);
     d.body.style.setProperty("overflow", "hidden", "important");
     _aws_animation(modal_elmnt, "fade-in", 220);
 
     let image=new Image();
 
+    image.onabort=()=>{
+        alert("Não foi possível carregar a imagem.")
+    },
+    image.onprogress=()=>{
+        content_box_elmnt.innerHTML="<div class=aws-view_loader></div>";
+    },
     image.onload=evt=> {
+        content_box_elmnt.innerHTML="";
         let image_elmnt=d.createElement("canvas"), image_elmnt_ctx=image_elmnt.getContext("2d", {antialias:true, depth:false});
         
         if(!image_elmnt_ctx){
@@ -341,6 +446,9 @@ function _aws_open_modal(evt){
             image_elmnt_ctx.drawImage(evt.target, 0, 0, image_elmnt.width, image_elmnt.height)
         }
 
+        hash+=(hash.length > 0 ? "&aws-img-index=" : "aws-img-index=");
+        hash+=aws_slideshow_index;
+        w.location.hash=hash;
         content_box_elmnt.appendChild(image_elmnt);
         _aws_animation(content_box_elmnt, "slide-up", 220)
     };
@@ -365,22 +473,27 @@ function _aws_open_modal(evt){
     return false
 }
 
-if(d.querySelector(aws_label_query)){
-    if(d.querySelectorAll(aws_label_query).length > 1){
-        for(let i=0;i<d.querySelectorAll(aws_label_query).length;++i)
-            d.querySelectorAll(aws_label_query)[i].onclick=_aws_open_modal;
-    }else d.querySelectorAll(aws_label_query).onclick=_aws_open_modal;
-}
+w.addEventListener("load", ()=>{
+    if(w.location.hash.length > 0 && w.location.hash.indexOf("aws") > -1)
+        w.history.pushState("", d.title, w.location.href.split("#")[0]);
 
+    if(d.querySelector(aws_label_query)){
+        if(d.querySelectorAll(aws_label_query).length > 1){
+            for(let i=0;i<d.querySelectorAll(aws_label_query).length;++i)
+                d.querySelectorAll(aws_label_query)[i].onclick=_aws_open_modal;
+        }else d.querySelectorAll(aws_label_query).onclick=_aws_open_modal;
+    }
+}, false),
 w.addEventListener("resize", evt=>{
     evt.preventDefault();
     aws_move_x_limit=parseInt(evt.target.innerWidth * .25), aws_move_y_limit=parseInt(evt.target.innerHeight * .5);
-}, false),
+    return false
+}, false);
 w.addEventListener("hashchange", evt=>{
-    evt.preventDefault();
-    let modal_elmnt=d.querySelector(".aws-view_overlay");
-    if(modal_elmnt){
+    const modal_elmnt=d.querySelector(".aws-view_overlay");
+    if(modal_elmnt && (w.location.hash == aws_previous_hash || w.location.hash.length <= 0)){
+        evt.preventDefault();
         _aws_close_modal();
         return false
-    }else return
+    }
 }, false)
