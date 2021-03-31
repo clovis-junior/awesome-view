@@ -22,9 +22,3 @@ Imagens em um grupo específico
 <img data-aws-view data-aws-view-group={categoria "animal"} src={imagem de animal} alt>
 <img data-aws-view data-aws-view-group={categoria "animal"} src={imagem de animal} alt>
 ```
-
-### A ideia é futuramente lançar
-
-- Mais skins próprias para o projeto, agilizando o processo do front-end;
-- Uma melhora no aspect-ratio das imagens e a utilização de ```<canvas>``` no lugar de ```<img>```;
-- Otimização no código Javascript em geral
