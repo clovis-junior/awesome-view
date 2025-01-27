@@ -1,7 +1,6 @@
 ### Sobre
 
 Simples, rápido, fácil de instalar. Um plugin que facilita a visualização de imagens em seu website.
-**[Clique aqui para ver o projeto funcionando (lembre-se que está em período de teste).](https://clovislab.000webhostapp.com/plugins/aws-view/)**
 
 ----
 ### Como utilizar?
